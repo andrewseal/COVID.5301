@@ -1,0 +1,412 @@
+---
+title: "COVID DTSA 5301"
+author: "Andrew Seal"
+date: "2025-07-01"
+output: pdf_document
+---
+```{r}
+library(tidyverse)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load the Data
+```{r}
+
+library(readxl)
+
+url1 <- 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv'
+
+url2 <- 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv'
+
+url3 <- 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv'
+
+url4 <- 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv'
+
+url5 <- 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv'
+
+url6 <- 'https://www.kaggle.com/datasets/adnananam/usa-statewise-population-2020?select=usa_statewise_population_2020.csv'
+
+us_cases <- read.csv(url1)
+us_deaths <- read.csv(url3)
+global_cases <- read.csv(url2)
+global_deaths <- read.csv(url4)
+global_pop <- read.csv(url5)
+us_pop <- read.csv(url6)
+
+
+```
+
+
+```{r}
+global_pop <- global_pop %>% filter(Province_State == "")
+```
+
+
+Format Global Cases
+```{r}
+
+global_cases <- global_cases %>% 
+  rename_with(~str_remove(., "^X"), everything())  %>% 
+  pivot_longer(cols = -c('Province.State', 'Country.Region', 'Lat', 'Long'), names_to = "date", values_to = "cases") %>% select(-c('Lat', 'Long')) %>% 
+  mutate(date = mdy(date)) 
+
+
+```
+
+
+Format Global Deaths
+```{r}
+#head(global_deaths)
+global_deaths <- global_deaths %>%
+  rename_with(~str_remove(., "^X"), everything()) %>% 
+  pivot_longer(cols = -c('Province.State', 'Country.Region', 'Lat', 'Long'), names_to = "date", values_to = "deaths") %>% select(-c('Lat', 'Long')) %>% 
+  mutate(date = mdy(date)) 
+
+#head(global_deaths)
+```
+
+
+Format US Cases
+```{r}
+#us_cases <- us_cases %>%  %>% 
+
+#  select(-c(Lat, Long_))
+
+us_cases <- us_cases %>% select(-c(UID:Admin2)) %>% select(-c(Lat:Combined_Key)) %>% 
+  rename_with(~str_remove(., "^X"), everything()) %>% 
+  pivot_longer(cols = -c(Province_State, Country_Region), names_to = 'date', values_to = 'cases') %>% 
+  mutate(date = mdy(date)) 
+
+#head(us_cases)
+
+```
+
+Format US Deaths
+```{r}
+us_deaths <- us_deaths %>% select(-c(UID:Admin2)) %>% select(-c(Lat:Combined_Key)) %>% 
+  rename_with(~str_remove(., "^X"), everything()) %>% 
+  pivot_longer(cols = -c(Province_State, Country_Region), names_to = 'date', values_to = 'deaths') %>% 
+  mutate(date = mdy(date)) %>% 
+  drop_na()
+
+#head(us_deaths)
+
+```
+
+
+
+
+
+Join US Cases and Deaths
+```{r}
+#now, join us cases and us_deaths
+us_data <- us_cases %>% full_join(us_deaths)
+```
+
+
+Now lets join the two global datasets
+
+```{r}
+global_data <- global_cases %>% full_join(global_deaths)
+
+```
+
+
+This is a dataframe of the Population of each State
+```{r}
+usa_pop_est <- structure(list(Province_State = c("Alabama", "Alaska", "Arizona", 
+"Arkansas", "California", "Colorado", "Connecticut", "Delaware", 
+"District of Columbia", "Florida", "Georgia", "Hawaii", "Idaho", 
+"Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", 
+"Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", 
+"Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", 
+"New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", 
+"Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", 
+"South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", 
+"Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", 
+"Wyoming"), Population = c(5024803, 732441, 7177986, 3012232, 
+39499738, 5784308, 3600260, 991886, 690093, 21569932, 10725800, 
+1451911, 1847772, 12785245, 6785644, 3188669, 2935880, 4503958, 
+4651203, 1362280, 6172679, 7022220, 10067664, 5707165, 2956870, 
+6154481, 1086193, 1961455, 3114071, 1377848, 9279743, 2117566, 
+20154933, 10457177, 778962, 11790587, 3962031, 4241544, 12989625, 
+1096229, 5130729, 887099, 6920119, 29217653, 3281684, 642495, 
+8632044, 7718785, 1789798, 5892323, 577267)), class = c("tbl_df", 
+"tbl", "data.frame"), row.names = c(NA, -51L))
+```
+
+
+Join US Case and Death Data with the Population Data
+```{r}
+us_data <- us_data %>% left_join(usa_pop_est)
+head(us_data)
+```
+
+
+One more format for Global Population data so we can join with our other data set
+```{r}
+global_pop <- global_pop %>% rename('Country.Region' = 'Country_Region')
+
+
+```
+
+Oh and reduce it
+```{r}
+global_population_estimates <- global_pop %>% select('Country.Region', 'Population')  
+
+#head(global_population_estimates)
+
+```
+
+Now join data global deaths and cases with global population data
+```{r}
+global_data <- global_data %>% left_join(global_population_estimates)
+
+```
+
+Now we have our global population data and cases by day in the same dataframe.
+
+Lets move on to our visualizations
+
+
+# State Visualizations
+
+Lets choose some states.  Colorado, California and Texas
+```{r}
+#head(us_data)
+
+colorado <- us_data %>% filter(Province_State == 'Colorado') %>% group_by(date) %>% summarize(cases = sum(cases), deaths = sum(deaths))
+california <- us_data %>% filter(Province_State == 'California') %>% group_by(date) %>% summarize(cases = sum(cases), deaths = sum(deaths))
+texas <- us_data %>% filter(Province_State == 'Texas') %>% group_by(date) %>% summarize(cases = sum(cases), deaths = sum(deaths))
+
+
+
+
+```
+
+And do a visualization of cases by date for our selected states.
+```{r}
+state <- factor("Colorado", "California", "Texas")
+colors = c('red', 'purple',  'green')
+ggplot(data = colorado, mapping = aes(x = date)) +
+  geom_point(mapping = aes(y = cases, color = 'Colorado')) +
+  geom_point(data = california, mapping = aes(y = cases, color = 'Califoria')) +
+  geom_point(data = texas, mapping = aes(y = cases, color = 'Texas')) +
+  scale_color_manual(values = colors) +
+  labs(title = 'Cases by Date for Select States') +
+  xlab("Date") + ylab("Cases")
+
+```
+This is some good information.  We can see that the cases in Texas are really outnumbering those in California or Colorado.  However, both California and Texas have large populations, so it is unsurprising they have more cases than Colorado.  
+
+Lets go ahead and look at the number of cases per capita and look at these comparisons again. 
+
+
+```{r}
+colorado <- us_data %>% filter(Province_State == 'Colorado') %>% group_by(date, Province_State, Population) %>% summarize(cases = sum(cases), deaths = sum(deaths)) %>% mutate('cases_per_10k' = cases/Population*10000) %>% mutate('deaths_per_10k' = deaths/Population*10000)
+
+california <- us_data %>% filter(Province_State == 'California') %>% group_by(date, Province_State, Population) %>% summarize(cases = sum(cases), deaths = sum(deaths)) %>% mutate('cases_per_10k' = cases/Population*10000) %>% mutate('deaths_per_10k' = deaths/Population*10000)
+
+texas <- us_data %>% filter(Province_State == 'Texas') %>% group_by(date, Province_State, Population) %>% summarize(cases = sum(cases), deaths = sum(deaths)) %>% mutate('cases_per_10k' = cases/Population*10000) %>% mutate('deaths_per_10k' = deaths/Population*10000)
+#tail(colorado)
+
+```
+```{r}
+ggplot(data = colorado, mapping = aes(x = date)) +
+  geom_point(mapping = aes(y = cases_per_10k, color = 'Colorado')) +
+  geom_point(data = california, mapping = aes(y = cases_per_10k, color = 'Califoria')) +
+  geom_point(data = texas, mapping = aes(y = cases_per_10k, color = 'Texas')) +
+  scale_color_manual(values = colors) +
+  labs(title = 'Cases per 10K Residents by Date for Select States') +
+  xlab("Date") + ylab("Cases Per 10K Residents")
+
+
+```
+Alright, that is interesting.  We are looking at some selected states to get a sense of the number of cases per 10,000 residents.  Here the picture looks really similar for Colorado and California, but it appears that Texas has many more cases per capita.
+
+For the same states, lets now look the number of deaths over time.  
+
+```{r}
+ggplot(data = colorado, mapping = aes(x = date)) +
+  geom_point(mapping = aes(y = deaths, color = 'Colorado')) +
+  geom_point(data = california, mapping = aes(y = deaths, color = 'California')) +
+  geom_point(data = texas, mapping = aes(y = deaths, color = 'Texas')) +
+  labs(title = "Deaths by Date for Selected US States") +
+  xlab("Date") + ylab("Deaths")
+
+
+```
+
+Yes, alright.  Again, everything is bigger in Texas...including Deaths by COVID.  
+But it is a state that has a large population, so lets compare on a per capita basis.
+
+
+```{r}
+
+ggplot(data = colorado, mapping = aes(x = date)) +
+  geom_point(mapping = aes(y = deaths_per_10k, color = 'Colorado')) +
+  geom_point(data = california, mapping = aes(y = deaths_per_10k, color = 'California')) +
+  geom_point(data = texas, mapping = aes(y = deaths_per_10k, color = 'Texas')) +
+  labs(title = "Deaths per 10K Population by Date for Selected US States") +
+  xlab("Date") + ylab("Deaths Per 10k Population")
+
+```
+
+Wow, similar to when we looked at cases per capita over time.  Here we see Colorado and Texas have similar numbers of deaths per-capita over time with some minor fluctuations.  On the other hand, Texas seems to be having a worse time with COVID than Colorado or California. 
+
+
+
+# International Visualizations 
+## European COVID
+
+
+Lets pull together some data four four selected European Countries.  The United Kingdom, Spain, France and Italy.  
+
+```{r}
+#df$value <- as.integer(df$value)
+u_k <- global_data %>% filter(Country.Region == 'United Kingdom') %>% group_by(date, Country.Region, Population) %>% summarize(cases = sum(cases), deaths = sum(deaths))  %>% mutate('UK_cases_per_10k' = cases/Population*10000) %>% mutate('UK_deaths_per_10k' = deaths / Population*10000)
+
+france <- global_data %>% filter(Country.Region == 'France') %>% group_by(date, Country.Region, Population) %>% summarize(cases = sum(cases), deaths = sum(deaths))  %>% mutate('France_cases_per_10k' = cases/Population*10000) %>% mutate('France_deaths_per_10k' = deaths / Population*10000)
+
+spain <- global_data %>% filter(Country.Region == 'Spain') %>% group_by(date, Country.Region, Population) %>% summarize(cases = sum(cases), deaths = sum(deaths))  %>% mutate('Spain_cases_per_10k' = cases/Population*10000) %>% mutate('Spain_deaths_per_10k' = deaths / Population*10000)
+
+italy <- global_data %>% filter(Country.Region == 'Italy') %>% group_by(date, Country.Region, Population) %>% summarize(cases = sum(cases), deaths = sum(deaths))  %>% mutate('Italy_cases_per_10k' = cases/Population*10000) %>% mutate('Italy_deaths_per_10k' = deaths / Population*10000)
+
+
+
+
+```
+
+
+In the previous section we saw that Total Cases were dependent on the population.  Lets skip total cases and total deaths and focus instead on Deaths and Cases per capita.
+
+We will begin with the cases per capita in our selected European countries.  
+```{r}
+state <- factor("United Kingdom", "France", "Spain", "Italy")
+colors = c('pink', 'yellow',  'green', 'blue')
+ggplot(data = u_k, mapping = aes(x = date)) +
+  geom_point(mapping = aes(y = UK_cases_per_10k, color = 'United Kingdom')) +
+  geom_point(data = france, mapping = aes(y = France_cases_per_10k, color = 'France')) +
+  geom_point(data = spain, mapping = aes(y = Spain_cases_per_10k, color = 'Spain')) +
+  geom_point(data = italy, mapping = aes(y = Italy_cases_per_10k, color = 'Italy')) +
+  scale_color_manual(values = colors) +
+  labs(title = 'Cases per 10K Residents by Date for Select European Country') +
+  xlab("Date") + ylab("Cases per 10K Residents")
+
+```
+
+
+
+```{r}
+state <- factor("United Kingdom", "France", "Spain", "Italy")
+colors = c('pink', 'yellow',  'green', 'blue')
+ggplot(data = u_k, mapping = aes(x = date)) +
+  geom_point(mapping = aes(y = UK_deaths_per_10k, color = 'United Kingdom')) +
+  geom_point(data = france, mapping = aes(y = France_deaths_per_10k, color = 'France')) +
+  geom_point(data = spain, mapping = aes(y = Spain_deaths_per_10k, color = 'Spain')) +
+  geom_point(data = italy, mapping = aes(y = Italy_deaths_per_10k, color = 'Italy')) +
+  scale_color_manual(values = colors) +
+  labs(title = 'Deaths per 10K residents by Date for Select European Country') +
+  xlab("Date") + ylab("Deaths per 10K Residents")
+
+
+```
+
+
+Alright, alright, alright.  It looks good.  What stands out to me is that France had many more cases per capita but that its deaths per capita were in line with the other european countries.  It may be interesting to look into why that is the case.  We will leave it for another day and model a different question.  
+
+# Modeling 
+
+Of all of these visualizations.  I felt like the one comparing Texas and Colorado on deaths and cases per 10k people was most interesting.  
+
+What would drive the difference between these states?
+
+My suspicion is that the political divide may play a part, so lets use modelling to compare deaths and cases by state and add in the voting behavior within each state.
+
+
+Lets pull in the percentage of voters in each state who voted for Donald Trump in the 2020 presidential election.  
+```{r}
+presidential <- structure(list(Province_State = c("Alabama", "Alaska", "Arizona", 
+"Arkansas", "California", "Colorado", "Connecticut", "Delaware", 
+"District of Columbia", "Florida", "Georgia", "Hawaii", "Idaho", 
+"Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", 
+"Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", 
+"Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", 
+"New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", 
+"Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", 
+"South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", 
+"Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", 
+"Wyoming", "Total:", NA, NA, NA, NA, NA), `Biden_Percent` = c(0.365699902, 
+0.427719523, 0.493646906, 0.34775062, 0.634843595, 0.553995419, 
+0.592607315, 0.587430058, 0.921496939, 0.478614507, 0.494730558, 
+0.637336392, 0.3306945, 0.575416358, 0.409631381, 0.448917156, 
+0.415086471, 0.361515148, 0.398514568, 0.530924596, 0.653606649, 
+0.65600063, 0.506208183, 0.523950993, 0.410576065, 0.414087817, 
+0.405493694, 0.391666309, 0.50056782, 0.527083062, 0.573343148, 
+0.542892858, 0.608677104, 0.485861942, 0.317774512, 0.452393383, 
+0.322861743, 0.564533187, 0.498521114, 0.593880913, 0.434300881, 
+0.356052521, 0.374514343, 0.464790099, 0.376460486, 0.660864169, 
+0.541095172, 0.579703011, 0.296935693, 0.494495369, 0.265535743, 
+0.513057441, NA, NA, NA, NA, NA), `Trump_Percent` = c(0.620316432, 
+0.528331433, 0.49055981, 0.623957299, 0.343202536, 0.418979238, 
+0.391871183, 0.397748768, 0.053973214, 0.512198196, 0.492374739, 
+0.342688639, 0.638434489, 0.405534441, 0.570305716, 0.53089325, 
+0.561436579, 0.620865719, 0.584608824, 0.44021253, 0.321502916, 
+0.32141911, 0.478372907, 0.452849424, 0.576029546, 0.567996558, 
+0.569184692, 0.582241633, 0.476662473, 0.453557098, 0.413964348, 
+0.434966692, 0.377399264, 0.499343506, 0.651202683, 0.532713001, 
+0.653732718, 0.40367246, 0.486908705, 0.386130946, 0.55110294, 
+0.617693897, 0.606602942, 0.520576036, 0.58129839, 0.306737647, 
+0.439955037, 0.387669777, 0.686247296, 0.488224373, 0.699362275, 
+0.468498061, NA, NA, NA, NA, NA)), row.names = c(NA, -57L), class = c("tbl_df", 
+"tbl", "data.frame"))
+```
+
+Take a look at this data.
+```{r}
+head(presidential)
+```
+
+
+
+Now lets combine the percentage of Trump voters with our cases and deaths per capita data.
+```{r}
+us_data <- us_data %>%  group_by(date, Province_State, Population) %>% summarize(cases = sum(cases), deaths = sum(deaths)) %>% mutate('cases_per_10k' = cases/Population*10000) %>% mutate('deaths_per_10k' = deaths/Population*10000)
+
+tail(us_data)
+
+
+```
+
+And we will filter by our last date so that we are just comparing total deaths as of the last date or our analysis.
+```{r}
+model_data <- us_data %>% filter(date == '2023-03-09')
+
+head(model_data)
+
+```
+
+Join the voting data with the cases  and deaths data.
+```{r}
+model_data <- model_data %>% left_join(presidential, by = 'Province_State')
+```
+
+
+Clean up a little.
+
+```{r}
+model_data <- drop_na(model_data)
+
+```
+
+
+Now a simple linear model comparing deaths to the percentage of Trump voters.
+```{r}
+death_model <- lm(deaths_per_10k ~ Trump_Percent, data = model_data)
+summary(death_model)
+```
+
+Yeah that is interesting.  When we model the percentage of people who voted for Trump against deaths per 10k people then we see a positive relationship between these variables with a small p-value on our test statistic!
