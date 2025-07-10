@@ -410,3 +410,30 @@ summary(death_model)
 ```
 
 Yeah that is interesting.  When we model the percentage of people who voted for Trump against deaths per 10k people then we see a positive relationship between these variables with a small p-value on our test statistic!
+
+
+# Bias
+
+As with any data set, there is without question, bias in the data we just analyzed.  
+Although through legitimate sources bias is inherent in our data.
+
+#### Bias in Case Counts
+We are comparing case counts across various jurisdictions, each of whom have a different methodology for collecting data.
+
+Throughout the pandemic, access to COVID tests was not equal across jurisdictions throuout the world.  Some countries had better access to testing, and this will definitely be reflected in our numbers.  If a certain jurisdiction is not testing very many of its citizens, then their case counts are likely to be low.  
+
+This is a potential explanation for why we saw France had high case counts compared to its peers but similar rates of deaths.  If they were testing more of their people but counting death in a similar way to their peers, then this could explain why their cases per capita were higher.
+
+Furthermore, there are multiple types of tests.  Some tests are more accurate than others.  In some jurisdictions all positive tests may be counted while in others only the most accurate PCR tests are included in the calculation.
+
+Finally, availability of at home tests could influince these figures.  If more people are testing at home in one place compared to another, and the people who test at home are unlikely to report their positive tests, the availibility of at home testing could bias our results.
+
+#### Bias in Death Counts
+Here in the United States, there has been some debate about whether deaths due to COVID were over counted.  The argument is that if someone had multiple health concerns, (say suppose cancer, diabetes and COVID) then there is some debate about what was the ultimate cause of deaths.
+
+It is likely that situations such as these are handled differently in one jurisdiction compared to another.
+
+Additionally, availibility of tests is another concern.  If someone passed away from COVID but authorities were unable to test for the virus, then the death may not be counted in the figures we examined.
+
+#### Population Counts
+Of course obtaining accurate census counts is time consuming and expensive.  The procedure and accuracy of census counts will vary between jurisdictions.  Also, some countries will conduct census counts more frequently giving better data.  When comparing cases and deaths per capita it is important to recognize that the accuracy of the population data has the potential to bias our data.
